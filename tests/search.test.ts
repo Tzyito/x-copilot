@@ -43,7 +43,6 @@ describe('Tweet Search functionality', () => {
 
     it('should find tweets by author name', () => {
         const results = searchEngine.search('张三')
-        console.log(results)
         expect(results.length).toBe(2)
         expect(results).toEqual(
             expect.arrayContaining([

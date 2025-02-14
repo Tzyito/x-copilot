@@ -3,9 +3,25 @@ import { storage } from 'wxt/storage'
 // import { useSearch } from './popup/search'
 // const { add } = useSearch()
 
+// 添加防抖函数
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+) {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+
+  return function (this: ThisParameterType<T>, ...args: Parameters<T>) {
+    const context = this
+    clearTimeout(timeout)
+    timeout = setTimeout(() => {
+      func.apply(context, args)
+    }, wait)
+  }
+}
+
 export default defineBackground(() => {
-  // 检查URL是否是推文页面并记录
-  const checkAndRecordTweet = async (url: string) => {
+  // 使用防抖包装检查函数
+  const debouncedCheckAndRecordTweet = debounce(async (url: string) => {
     try {
       const parsedUrl = new URL(url);
       if (parsedUrl.hostname === 'x.com' || parsedUrl.hostname === 'twitter.com') {
@@ -13,31 +29,28 @@ export default defineBackground(() => {
 
         if (tweetMatch) {
           const tweetId = tweetMatch[2];
-
-          // 获取页面标题
-          const tabs = await browser.tabs.query({ url });
-          const pageTitle = tabs[0]?.title || '';
-          // 解析作者和内容
-          const titleMatch = pageTitle.match(/^(.+?)\s+on\s+X:\s+"(.+?)"/);
-          if (!titleMatch) return
-          const author = titleMatch[1];
-          const content = titleMatch[2];
-          const truncatedContent = content.length > 30 ? content.slice(0, 30) + '...' : content;
-
-          const historyItem: TweetHistory = {
-            tweetId,
-            url: url,
-            timestamp: Date.now(),
-            author,
-            title: truncatedContent
-          };
-
-          // 存储访问历史
           const existingHistory = await storage.getItem<TweetHistory[]>('local:tweetHistory');
           const history: TweetHistory[] = existingHistory || [];
-
           // 检查是否已存在相同的记录
+
           if (!history.some(item => item.tweetId === tweetId)) {
+            const tabs = await browser.tabs.query({ url });
+            const pageTitle = tabs[0]?.title || '';
+            // 解析作者和内容
+            const titleMatch = pageTitle.match(/^(.+?)\s+on\s+X:\s+"(.+?)"/);
+            if (!titleMatch) return
+            const author = titleMatch[1];
+            const content = titleMatch[2];
+            console.log(author, content)
+            const truncatedContent = content.length > 30 ? content.slice(0, 30) + '...' : content;
+
+            const historyItem: TweetHistory = {
+              tweetId,
+              url: url,
+              timestamp: Date.now(),
+              author,
+              title: truncatedContent
+            };
             // 添加新记录到历史中
             history.unshift(historyItem);
             // 保存更新后的历史
@@ -59,19 +72,19 @@ export default defineBackground(() => {
     } catch (error) {
       console.error('Error checking tweet URL:', error);
     }
-  };
+  }, 300); // 300ms 的防抖时间
 
   // 监听来自content script的消息
   browser.runtime.onMessage.addListener((message, sender) => {
     if (message === 'CHECK_URL' && sender.tab?.url) {
-      checkAndRecordTweet(sender.tab.url);
+      debouncedCheckAndRecordTweet(sender.tab.url);
     }
   });
 
   // 监听标签页更新（用于非SPA导航）
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url) {
-      checkAndRecordTweet(tab.url);
+      debouncedCheckAndRecordTweet(tab.url);
     }
   });
 });

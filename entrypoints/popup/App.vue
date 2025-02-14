@@ -1,77 +1,56 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { storage } from "wxt/storage";
-import type { TweetHistory } from "../../types";
-// import { useSearch } from './search'
+import { ref, onMounted, computed } from 'vue'
+import { storage } from 'wxt/storage'
+import type { TweetHistory } from '../../types'
 
-const records = ref<TweetHistory[]>([]);
-const searchQuery = ref("");
-const searchList = ref<TweetHistory[]>([]);
+const records = ref<TweetHistory[]>([])
+const searchQuery = ref('')
 
-// const { search } = useSearch()
+const filteredRecords = computed(() => {
+  if (!searchQuery.value) return records.value
 
-// 初始化搜索引擎
-const searchHistory = async (question: string) => {
-  const search = async (question: string) => {
-    const history =
-      (await storage.getItem<TweetHistory[]>("local:tweetHistory")) || [];
-    const result = history.filter((item: TweetHistory) =>
-      item.title?.includes(question)
-    );
-    return result;
-  };
-  searchList.value = await search(question);
-  console.log("searchList.value", searchList.value);
-};
-
-watch(searchQuery, async (newVal) => {
-  console.log("newVal", newVal);
-  searchHistory(newVal);
-});
+  const query = searchQuery.value.toLowerCase()
+  return records.value.filter(
+    (record) =>
+      record.title?.toLowerCase().includes(query) ||
+      record.author?.toLowerCase().includes(query)
+  )
+})
 
 const loadHistory = async () => {
-  records.value = (await storage.getItem("local:tweetHistory")) || [];
-};
-
-const filterRecords = computed(() => {
-  if (!searchQuery.value || !searchList.value.length) {
-    return records.value;
-  }
-  console.log("filterRecords", searchList.value);
-  return searchList.value;
-});
+  records.value = (await storage.getItem('local:tweetHistory')) || []
+}
 
 onMounted(async () => {
-  loadHistory();
-  console.log("records.value");
+  loadHistory()
+
   // 监听历史更新消息
   browser.runtime.onMessage.addListener((message) => {
-    if (message.type === "TWEET_HISTORY_UPDATED") {
-      console.log("TWEET_HISTORY_UPDATED ");
-      loadHistory();
+    if (message.type === 'TWEET_HISTORY_UPDATED') {
+      loadHistory()
     }
-  });
-});
+  })
+})
 
-const formatTime = (timestamp: number) => {
-  return new Date(timestamp).toLocaleString();
-};
-
-const openTweet = (url: string) => {
-  window.open(url, "_blank");
-};
+const openTweet = (record: TweetHistory) => {
+  window.open(record.url, '_blank')
+}
 
 const clearHistory = async () => {
-  await storage.setItem("local:tweetHistory", []);
-  records.value = [];
-  searchList.value = [];
-};
+  await storage.setItem('local:tweetHistory', [])
+  records.value = []
+}
+
+// 添加 formatTime 函数
+const formatTime = (timestamp: number) => {
+  return new Date(timestamp).toLocaleString()
+}
 </script>
 
 <template>
   <div class="container">
     <div class="header">
-      <h1>浏览历史</h1>
+      <h1 class="title">浏览历史</h1>
       <button @click="clearHistory" class="clear-btn">清空历史</button>
     </div>
 
@@ -82,18 +61,20 @@ const clearHistory = async () => {
         placeholder="搜索作者或内容..."
         class="search-input"
       />
+      <div class="shortcut-tip">在网页中使用 Shift + K 快速搜索</div>
     </div>
 
-    <div v-if="filterRecords.length === 0" class="empty-state">
-      {{ searchQuery ? "没有找到匹配的记录" : "暂无浏览记录" }}
+    <div v-if="records.length === 0" class="empty-state">暂无浏览记录</div>
+    <div v-else-if="searchQuery && !filteredRecords.length" class="empty-state">
+      无搜索结果
     </div>
 
     <div v-else class="records-list">
       <div
-        v-for="record in filterRecords"
+        v-for="record in filteredRecords"
         :key="record.url"
         class="record-item"
-        @click="openTweet(record.url)"
+        @click="openTweet(record)"
       >
         <div class="record-header">
           <span class="author">{{ record.author }}</span>
@@ -108,7 +89,7 @@ const clearHistory = async () => {
 <style scoped>
 .container {
   width: 400px;
-  padding: 16px;
+  padding: 12px;
   font-family: system-ui, -apple-system, sans-serif;
 }
 
@@ -116,40 +97,49 @@ const clearHistory = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
 .search-box {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .search-input {
   width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
   outline: none;
-  transition: all 0.2s;
+  background-color: #f8f8f8;
 }
 
 .search-input:focus {
-  border-color: #1a1a1a;
-  box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.1);
+  border-color: #2563eb;
+  background-color: #fff;
 }
 
-h1 {
-  margin: 0;
-  font-size: 20px;
-  color: #1a1a1a;
+.shortcut-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #666;
+  text-align: center;
 }
 
 .clear-btn {
-  padding: 6px 12px;
+  padding: 4px 8px;
   border: none;
   border-radius: 4px;
   background-color: #f0f0f0;
   color: #666;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -161,13 +151,14 @@ h1 {
 .empty-state {
   text-align: center;
   color: #666;
-  padding: 32px 0;
+  padding: 24px 0;
+  font-size: 13px;
 }
 
 .records-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   max-height: 400px;
   overflow-y: auto;
   padding-right: 4px;
@@ -200,7 +191,7 @@ h1 {
 }
 
 .record-item {
-  padding: 12px;
+  padding: 10px;
   border-radius: 8px;
   background-color: #f8f8f8;
   cursor: pointer;
@@ -220,7 +211,7 @@ h1 {
 .author {
   font-weight: bold;
   color: #1a1a1a;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .time {
@@ -230,7 +221,7 @@ h1 {
 
 .title {
   color: #444;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.4;
   text-align: left;
 }

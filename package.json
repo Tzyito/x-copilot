@@ -25,19 +25,19 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@orama/orama": "^3.0.4",
-    "@orama/stopwords": "^3.0.4",
-    "@orama/tokenizers": "^3.0.4",
-    "@vueuse/core": "^12.4.0",
-    "vitest": "^2.1.8",
-    "vue": "^3.5.12"
+    "@orama/orama": "^3.0.7",
+    "@orama/stopwords": "^3.0.7",
+    "@orama/tokenizers": "^3.0.7",
+    "@vueuse/core": "^12.6.0",
+    "vitest": "^2.1.9",
+    "vue": "^3.5.13"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.280",
     "@types/js-search": "^1.4.4",
-    "@wxt-dev/module-vue": "^1.0.1",
+    "@wxt-dev/module-vue": "^1.0.2",
     "typescript": "5.6.3",
-    "vue-tsc": "^2.1.10",
-    "wxt": "^0.19.13"
+    "vue-tsc": "^2.2.0",
+    "wxt": "^0.19.27"
   }
 }
