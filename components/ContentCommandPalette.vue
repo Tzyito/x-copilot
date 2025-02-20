@@ -16,7 +16,8 @@ const filteredRecords = computed(() => {
   return records.value.filter(
     (record) =>
       record.title?.toLowerCase().includes(query) ||
-      record.author?.toLowerCase().includes(query)
+      record.author?.toLowerCase().includes(query) ||
+      record.content?.toLowerCase().includes(query)
   )
 })
 
@@ -138,7 +139,7 @@ defineExpose({ open, close })
           <div class="no-results-icon">🔍</div>
           <div class="no-results-text">无搜索结果</div>
         </div>
-        <div v-else class="empty-hint">
+        <div v-else-if="!records.length" class="empty-hint">
           <div class="empty-hint-icon">✨</div>
           <div class="empty-hint-text">输入关键词搜索历史记录</div>
           <div class="empty-hint-shortcut">

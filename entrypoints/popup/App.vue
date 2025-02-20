@@ -1,10 +1,51 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { storage } from 'wxt/storage'
-import type { TweetHistory } from '../../types'
+import type { TweetHistory, CleanupPeriod, CleanupConfig } from '../../types'
+import { cleanupHistory } from '../util/cleanup'
 
 const records = ref<TweetHistory[]>([])
 const searchQuery = ref('')
+const showCleanupSettings = ref(false)
+
+// 清理周期选项
+const CLEANUP_OPTIONS = [
+  { label: '一周', value: '1w' as const },
+  { label: '一个月', value: '1m' as const },
+  { label: '三个月', value: '3m' as const },
+  { label: '一年', value: '1y' as const },
+  { label: '永不', value: 'never' as const },
+] as const
+
+const cleanupConfig = ref<CleanupConfig>({
+  period: 'never',
+  lastCleanup: Date.now(),
+})
+
+// 加载清理配置
+const loadCleanupConfig = async () => {
+  const config = await storage.getItem<CleanupConfig>('local:cleanupConfig')
+  if (config) {
+    cleanupConfig.value = config
+  }
+}
+
+// 保存清理配置
+const saveCleanupConfig = async (period: CleanupPeriod) => {
+  const config: CleanupConfig = {
+    period,
+    lastCleanup: Date.now(),
+  }
+  await storage.setItem('local:cleanupConfig', config)
+  cleanupConfig.value = config
+  showCleanupSettings.value = false
+
+  // 立即执行一次清理
+  const newHistory = await cleanupHistory()
+  if (newHistory) {
+    records.value = newHistory
+  }
+}
 
 const filteredRecords = computed(() => {
   if (!searchQuery.value) return records.value
@@ -22,7 +63,8 @@ const loadHistory = async () => {
 }
 
 onMounted(async () => {
-  loadHistory()
+  await loadHistory()
+  await loadCleanupConfig()
 
   // 监听历史更新消息
   browser.runtime.onMessage.addListener((message) => {
@@ -51,7 +93,41 @@ const formatTime = (timestamp: number) => {
   <div class="container">
     <div class="header">
       <h1 class="title">浏览历史</h1>
-      <button @click="clearHistory" class="clear-btn">清空历史</button>
+      <div class="header-actions">
+        <button class="action-btn" @click="showCleanupSettings = true">
+          <span class="action-icon">⏱️</span>
+        </button>
+        <button @click="clearHistory" class="clear-btn">清空历史</button>
+      </div>
+    </div>
+
+    <!-- 清理设置弹窗 -->
+    <div
+      v-if="showCleanupSettings"
+      class="cleanup-modal-backdrop"
+      @click="showCleanupSettings = false"
+    >
+      <div class="cleanup-modal" @click.stop>
+        <div class="cleanup-modal-header">
+          <h3>自动清理设置</h3>
+          <button class="close-btn" @click="showCleanupSettings = false">
+            ×
+          </button>
+        </div>
+        <div class="cleanup-options">
+          <button
+            v-for="option in CLEANUP_OPTIONS"
+            :key="option.value"
+            :class="[
+              'cleanup-option',
+              { active: cleanupConfig.period === option.value },
+            ]"
+            @click="saveCleanupConfig(option.value)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="search-box">
@@ -62,6 +138,12 @@ const formatTime = (timestamp: number) => {
         class="search-input"
       />
       <div class="shortcut-tip">在网页中使用 Shift + K 快速搜索</div>
+      <div v-if="cleanupConfig.period !== 'never'" class="cleanup-tip">
+        将自动清理{{
+          CLEANUP_OPTIONS.find((opt) => opt.value === cleanupConfig.period)
+            ?.label
+        }}以前的记录
+      </div>
     </div>
 
     <div v-if="records.length === 0" class="empty-state">暂无浏览记录</div>
@@ -224,5 +306,106 @@ const formatTime = (timestamp: number) => {
   font-size: 13px;
   line-height: 1.4;
   text-align: left;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.action-btn {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #f0f0f0;
+}
+
+.action-icon {
+  font-size: 16px;
+}
+
+.cleanup-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.cleanup-modal {
+  width: 300px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.cleanup-modal-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cleanup-modal-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.close-btn {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  color: #666;
+  padding: 4px;
+}
+
+.cleanup-options {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cleanup-option {
+  padding: 8px 12px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.cleanup-option:hover {
+  background: #f5f5f5;
+}
+
+.cleanup-option.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.cleanup-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #666;
+  text-align: center;
 }
 </style>

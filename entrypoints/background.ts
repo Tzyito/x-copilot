@@ -1,5 +1,6 @@
 import type { TweetHistory, Message } from '../types'
 import { storage } from 'wxt/storage'
+import { cleanupHistory } from './util/cleanup'
 // import { useSearch } from './popup/search'
 // const { add } = useSearch()
 
@@ -88,7 +89,31 @@ export default defineBackground(() => {
   // 监听标签页更新（用于非SPA导航）
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url) {
-      debouncedCheckAndRecordTweet(tab.url);
+      debouncedCheckAndRecordTweet(tab.url)
     }
-  });
-});
+  })
+
+  // 设置定期检查清理
+  // 每小时检查一次
+  setInterval(async () => {
+    const newHistory = await cleanupHistory()
+    if (newHistory) {
+      // 通知 popup 更新
+      browser.runtime.sendMessage({ type: 'TWEET_HISTORY_UPDATED' })
+    }
+  }, 60 * 60 * 1000)
+
+  // 扩展启动时检查一次
+  cleanupHistory().then((newHistory) => {
+    if (newHistory) {
+      browser.runtime.sendMessage({ type: 'TWEET_HISTORY_UPDATED' })
+    }
+  })
+
+  // 监听存储变化，当清理配置更新时也执行清理
+  browser.storage.onChanged.addListener((changes) => {
+    if (changes.cleanupConfig) {
+      cleanupHistory()
+    }
+  })
+})
