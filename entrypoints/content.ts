@@ -17,7 +17,7 @@ function createCommandPalette() {
     // 可以传递 props
     onClose: () => {
       isOpen.value = false
-    }
+    },
   })
   // 挂载应用
   const instance = app.mount(container)
@@ -27,14 +27,11 @@ function createCommandPalette() {
   const k = keys['Shift_K']
 
   // 监听快捷键
-  watch(
-    k,
-    (v) => {
-      if (v) {
-        (instance as any).open()
-      }
+  watch(k, (v) => {
+    if (v) {
+      ;(instance as any).open()
     }
-  )
+  })
 
   // 返回清理函数
   return () => {
@@ -44,17 +41,14 @@ function createCommandPalette() {
 }
 
 // 添加节流函数
-function throttle<T extends (...args: any[]) => any>(
-  func: T,
-  limit: number
-) {
+function throttle<T extends (...args: any[]) => any>(func: T, limit: number) {
   let inThrottle = false
 
   return function (this: ThisParameterType<T>, ...args: Parameters<T>) {
     if (!inThrottle) {
       func.apply(this, args)
       inThrottle = true
-      setTimeout(() => inThrottle = false, limit)
+      setTimeout(() => (inThrottle = false), limit)
     }
   }
 }
@@ -81,11 +75,13 @@ export default defineContentScript({
 
     // 监听时间轴元素的变化
     function observeTimeline() {
-      const timelineElement = document.querySelector('[aria-label="Home timeline"]')
+      const timelineElement = document.querySelector(
+        '[aria-label="Home timeline"]'
+      )
       if (timelineElement) {
         observer.observe(timelineElement, {
           childList: true,
-          subtree: true
+          subtree: true,
         })
         return true
       }
@@ -102,7 +98,7 @@ export default defineContentScript({
 
       bodyObserver.observe(document.body, {
         childList: true,
-        subtree: true
+        subtree: true,
       })
     }
 
