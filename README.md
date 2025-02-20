@@ -15,12 +15,12 @@ An elegant browser extension that helps you record and manage your X (Twitter) b
 ## 🚀 Features
 
 - [x] 🔥 Record Browsing History
-- [ ] 🎯 Smart Dwell Time Detection
+- [x] 🎯 Timing Clean History Record
 - [x] 🔍 Real-time History Search
 - [ ] 💫 Elegant Animations
 - [ ] 🌈 Modern UI Design
 - [ ] 📱 Responsive Layout
-- [ ] 🔥 Quick Access (⌘K / Ctrl+K)
+- [x] 🔥 Quick Access (⌘K / Ctrl+K)
 
 ## 💡 Key Features
 
@@ -60,15 +60,6 @@ pnpm dev
 # Build extension
 pnpm build
 ```
-
-## 🔧 Configuration
-
-The extension offers several customizable options:
-
-- Dwell time threshold
-- Dark/Light theme
-- Search fields
-- Keyboard shortcuts
 
 ## 🤝 Contributing
 
