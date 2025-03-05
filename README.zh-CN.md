@@ -20,6 +20,21 @@
 - [ ] 🌈 现代化的 UI 设计
 - [ ] 📱 响应式布局
 - [x] 🔥 快捷键唤起 (⌘K / Ctrl+K)
+- [x] 🔍 AI 智能搜索
+
+## 截图&视频
+
+### 浏览历史
+
+![image](./public/screenshots/history.png)
+
+### 清理历史
+
+![image](./public/screenshots/clean_history.png)
+
+### 记录流程
+
+<video src="https://github.com/Tzyito/x-copilot/releases/download/record_video/record.mp4" width="100%" height="240" controls></video>
 
 ## 📦 开发设置
 
