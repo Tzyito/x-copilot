@@ -1,5 +1,5 @@
 import { createApp, ref, computed, watch } from 'vue'
-import ContentCommandPalette from '../components/ContentCommandPalette.vue'
+import ContentCommandPalette from '@/components/ContentCommandPalette.vue'
 import { useMagicKeys } from '@vueuse/core'
 
 // 创建命令面板

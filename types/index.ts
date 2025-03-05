@@ -18,3 +18,8 @@ export interface CleanupConfig {
   period: CleanupPeriod
   lastCleanup: number
 }
+export interface LLMConfig {
+  apiKey: string
+  baseUrl: string
+  model: string
+}

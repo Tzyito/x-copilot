@@ -2,13 +2,18 @@
 import { ref, computed, nextTick } from 'vue'
 import type { TweetHistory } from '../types'
 import { storage } from 'wxt/storage'
+import { useSearch } from '@/llm/useSearch'
+import { Toaster, toast } from 'vue-sonner'
 
 const isOpen = ref(false)
 const searchQuery = ref('')
 const selectedIndex = ref(0)
 const records = ref<TweetHistory[]>([])
 const searchInput = ref<HTMLInputElement>()
+const isSearching = ref(false)
+const deletingId = ref<string | null>(null)
 
+const { search } = useSearch()
 const filteredRecords = computed(() => {
   if (!searchQuery.value) return records.value
 
@@ -68,6 +73,43 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
+const handleSearch = async () => {
+  if (!searchQuery.value) return
+  isSearching.value = true
+  try {
+    const result = await search(searchQuery.value)
+    if (!result) return
+    const url = window.location.origin
+    if (url !== 'https://x.com') return
+    const newUrl = new URL(url + '/search?q=' + result)
+    window.location.href = newUrl.toString()
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : '搜索失败')
+  } finally {
+    isSearching.value = false
+  }
+}
+
+const deleteRecord = async (record: TweetHistory, e: Event) => {
+  e.stopPropagation()
+  if (deletingId.value === record.url) return
+
+  deletingId.value = record.url
+
+  try {
+    const currentRecords =
+      (await storage.getItem<TweetHistory[]>('local:tweetHistory')) || []
+    const newRecords = currentRecords.filter((r) => r.url !== record.url)
+    await storage.setItem('local:tweetHistory', newRecords)
+    records.value = newRecords
+    if (selectedIndex.value >= records.value.length) {
+      selectedIndex.value = Math.max(0, records.value.length - 1)
+    }
+  } finally {
+    deletingId.value = null
+  }
+}
+
 // 监听历史更新消息
 browser.runtime.onMessage.addListener((message) => {
   if (message.type === 'TWEET_HISTORY_UPDATED') {
@@ -81,6 +123,7 @@ defineExpose({ open, close })
 </script>
 
 <template>
+  <Toaster />
   <div v-if="isOpen" class="command-palette-backdrop" @click="close">
     <div class="command-palette" @click.stop>
       <div class="search-input-wrapper">
@@ -103,10 +146,14 @@ defineExpose({ open, close })
             ref="searchInput"
             v-model="searchQuery"
             type="text"
-            placeholder="搜索历史记录..."
+            placeholder="搜索历史记录(按下回车进行AI搜索)..."
             class="search-input"
             @keydown="handleKeydown"
+            @keyup.enter="handleSearch"
           />
+          <div v-if="isSearching" class="search-loading">
+            <div class="loading-spinner"></div>
+          </div>
           <kbd class="shortcut-hint">{{ SHORTCUT_TEXT }}</kbd>
         </div>
       </div>
@@ -133,6 +180,32 @@ defineExpose({ open, close })
                 </span>
               </div>
             </div>
+            <button
+              class="result-delete"
+              @click="(e) => deleteRecord(record, e)"
+              :class="{ 'is-deleting': deletingId === record.url }"
+            >
+              <div
+                v-if="deletingId === record.url"
+                class="delete-loading"
+              ></div>
+              <svg
+                v-else
+                class="delete-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
           </div>
         </template>
         <div v-else-if="searchQuery" class="no-results">
@@ -204,6 +277,7 @@ defineExpose({ open, close })
   font-size: 16px;
   background: transparent;
   padding: 4px 0;
+  padding-right: 30px;
 }
 
 .shortcut-hint {
@@ -225,6 +299,7 @@ defineExpose({ open, close })
   padding: 12px 16px;
   cursor: pointer;
   transition: all 0.2s;
+  position: relative;
 }
 
 .result-item:hover,
@@ -236,6 +311,53 @@ defineExpose({ open, close })
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.result-item:hover .result-delete {
+  opacity: 1;
+}
+
+.result-delete {
+  opacity: 0;
+  transition: all 0.2s;
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: #fee2e2;
+  color: #dc2626;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.result-delete:hover {
+  background: #fecaca;
+}
+
+.result-delete.is-deleting {
+  opacity: 1;
+  background: #f3f4f6;
+  pointer-events: none;
+}
+
+.delete-loading {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #6b7280;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.delete-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .result-title {
@@ -307,5 +429,30 @@ kbd {
 
 .results-wrapper::-webkit-scrollbar-thumb:hover {
   background: #ccc;
+}
+
+.search-loading {
+  position: absolute;
+  right: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #2563eb;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>

@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { storage } from 'wxt/storage'
-import type { TweetHistory, CleanupPeriod, CleanupConfig } from '../../types'
+import type {
+  TweetHistory,
+  CleanupPeriod,
+  CleanupConfig,
+  LLMConfig,
+} from '@/types'
 import { cleanupHistory } from '../util/cleanup'
 
 const records = ref<TweetHistory[]>([])
 const searchQuery = ref('')
 const showCleanupSettings = ref(false)
+const showLLMSettings = ref(false)
 
 // 清理周期选项
 const CLEANUP_OPTIONS = [
@@ -20,6 +26,12 @@ const CLEANUP_OPTIONS = [
 const cleanupConfig = ref<CleanupConfig>({
   period: 'never',
   lastCleanup: Date.now(),
+})
+
+const llmConfig = ref<LLMConfig>({
+  baseUrl: '',
+  apiKey: '',
+  model: '',
 })
 
 // 加载清理配置
@@ -47,6 +59,20 @@ const saveCleanupConfig = async (period: CleanupPeriod) => {
   }
 }
 
+// 加载 LLM 配置
+const loadLLMConfig = async () => {
+  const config = await storage.getItem<LLMConfig>('local:llm_config')
+  if (config) {
+    llmConfig.value = config
+  }
+}
+
+// 保存 LLM 配置
+const saveLLMConfig = async () => {
+  await storage.setItem('local:llm_config', llmConfig.value)
+  showLLMSettings.value = false
+}
+
 const filteredRecords = computed(() => {
   if (!searchQuery.value) return records.value
 
@@ -65,6 +91,7 @@ const loadHistory = async () => {
 onMounted(async () => {
   await loadHistory()
   await loadCleanupConfig()
+  await loadLLMConfig()
 
   // 监听历史更新消息
   browser.runtime.onMessage.addListener((message) => {
@@ -94,10 +121,54 @@ const formatTime = (timestamp: number) => {
     <div class="header">
       <h1 class="title">浏览历史</h1>
       <div class="header-actions">
+        <button class="action-btn" @click="showLLMSettings = true">
+          <span class="action-icon">🤖</span>
+        </button>
         <button class="action-btn" @click="showCleanupSettings = true">
           <span class="action-icon">⏱️</span>
         </button>
         <button @click="clearHistory" class="clear-btn">清空历史</button>
+      </div>
+    </div>
+
+    <!-- LLM 设置弹窗 -->
+    <div
+      v-if="showLLMSettings"
+      class="cleanup-modal-backdrop"
+      @click="showLLMSettings = false"
+    >
+      <div class="cleanup-modal" @click.stop>
+        <div class="cleanup-modal-header">
+          <h3>LLM 配置</h3>
+          <button class="close-btn" @click="showLLMSettings = false">×</button>
+        </div>
+        <div class="llm-settings">
+          <div class="form-group">
+            <label>Base API</label>
+            <input
+              v-model="llmConfig.baseUrl"
+              type="text"
+              placeholder="输入 API 地址"
+            />
+          </div>
+          <div class="form-group">
+            <label>API Key</label>
+            <input
+              v-model="llmConfig.apiKey"
+              type="password"
+              placeholder="输入 API Key"
+            />
+          </div>
+          <div class="form-group">
+            <label>模型</label>
+            <input
+              v-model="llmConfig.model"
+              type="text"
+              placeholder="输入模型名称"
+            />
+          </div>
+          <button class="save-btn" @click="saveLLMConfig">保存</button>
+        </div>
       </div>
     </div>
 
@@ -407,5 +478,56 @@ const formatTime = (timestamp: number) => {
   font-size: 12px;
   color: #666;
   text-align: center;
+}
+
+.llm-settings {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group {
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  color: #666;
+}
+
+.form-group input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.form-group input:focus {
+  border-color: #2563eb;
+  outline: none;
+}
+
+.save-btn {
+  width: 100%;
+  padding: 8px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-btn:hover {
+  background: #1d4ed8;
 }
 </style>
