@@ -22,4 +22,5 @@ export interface LLMConfig {
   apiKey: string
   baseUrl: string
   model: string
+  provider: string
 }

@@ -1,5 +1,5 @@
 import { generateText } from 'ai'
-import GeminiProvider from './models/gemini'
+import { providers } from './models'
 import { storage } from 'wxt/storage'
 import { LLMConfig } from '@/types'
 
@@ -61,9 +61,9 @@ ${query}
 export const llm = async (prompt: string) => {
   const llm_config = await storage.getItem<LLMConfig>('local:llm_config')
   if (llm_config && llm_config.model) {
-    const provider = await GeminiProvider()
+    const aiProvider = await providers[llm_config.provider]()
     return generateText({
-      model: provider(llm_config.model),
+      model: aiProvider(llm_config.model),
       prompt: generatePrompt(prompt, new Date()),
     })
   }

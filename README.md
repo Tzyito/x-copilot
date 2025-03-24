@@ -18,7 +18,7 @@ An elegant browser extension that helps you record and manage your X (Twitter) b
 - [x] 🎯 Timing Clean History Record
 - [x] 🔍 Real-time History Search
 - [ ] 💫 Elegant Animations
-- [ ] 🌈 Modern UI Design
+- [x] 🌈 Modern UI Design
 - [ ] 📱 Responsive Layout
 - [x] 🔥 Quick Access (⌘K / Ctrl+K)
 - [x] 🔍 Intelligent Search
@@ -61,13 +61,14 @@ An elegant browser extension that helps you record and manage your X (Twitter) b
 
 ### record flow
 
-<video src="https://github.com/Tzyito/x-copilot/releases/download/record_video/record.mp4" width="100%" height="240" controls></video>
+<video src="./public/screenshots/output.webm" width="100%" height="240" controls></video>
 
 ## 📦 Development Setup
 
 ```bash
 # Install dependencies
 pnpm install
+
 
 # Development mode
 pnpm dev

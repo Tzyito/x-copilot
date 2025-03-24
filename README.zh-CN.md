@@ -17,7 +17,7 @@
 - [x] 🎯 定时清理历史记录
 - [x] 🔍 实时搜索历史记录
 - [ ] 💫 优雅的动画效果
-- [ ] 🌈 现代化的 UI 设计
+- [x] 🌈 现代化的 UI 设计
 - [ ] 📱 响应式布局
 - [x] 🔥 快捷键唤起 (⌘K / Ctrl+K)
 - [x] 🔍 AI 智能搜索
@@ -34,7 +34,7 @@
 
 ### 记录流程
 
-<video src="https://github.com/Tzyito/x-copilot/releases/download/record_video/record.mp4" width="100%" height="240" controls></video>
+<video src="./public/screenshots/output.webm" width="100%" height="240" controls></video>
 
 ## 📦 开发设置
 
