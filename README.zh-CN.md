@@ -36,6 +36,10 @@
 
 <video src="./public/screenshots/video.mp4" width="100%" height="240" controls></video>
 
+## 如何使用
+
+下载最新版本 [here](https://github.com/Tzyito/x-copilot/releases)
+
 ## 📦 开发设置
 
 ```bash

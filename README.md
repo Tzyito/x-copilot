@@ -63,6 +63,10 @@ An elegant browser extension that helps you record and manage your X (Twitter) b
 
 <video src="./public/screenshots/video.mp4" width="100%" height="240" controls></video>
 
+## How to use
+
+download the latest release from [here](https://github.com/Tzyito/x-copilot/releases)
+
 ## 📦 Development Setup
 
 ```bash
