@@ -22,7 +22,7 @@ const filteredRecords = computed(() => {
     (record) =>
       record.title?.toLowerCase().includes(query) ||
       record.author?.toLowerCase().includes(query) ||
-      record.content?.toLowerCase().includes(query)
+      record.content?.toLowerCase().includes(query),
   )
 })
 
@@ -51,15 +51,12 @@ const handleKeydown = (e: KeyboardEvent) => {
   switch (e.key) {
     case 'ArrowDown':
       e.preventDefault()
-      selectedIndex.value =
-        (selectedIndex.value + 1) % filteredRecords.value.length
+      selectedIndex.value = (selectedIndex.value + 1) % filteredRecords.value.length
       break
     case 'ArrowUp':
       e.preventDefault()
       selectedIndex.value =
-        selectedIndex.value - 1 < 0
-          ? filteredRecords.value.length - 1
-          : selectedIndex.value - 1
+        selectedIndex.value - 1 < 0 ? filteredRecords.value.length - 1 : selectedIndex.value - 1
       break
     case 'Enter':
       if (filteredRecords.value[selectedIndex.value]) {
@@ -97,8 +94,7 @@ const deleteRecord = async (record: TweetHistory, e: Event) => {
   deletingId.value = record.url
 
   try {
-    const currentRecords =
-      (await storage.getItem<TweetHistory[]>('local:tweetHistory')) || []
+    const currentRecords = (await storage.getItem<TweetHistory[]>('local:tweetHistory')) || []
     const newRecords = currentRecords.filter((r) => r.url !== record.url)
     await storage.setItem('local:tweetHistory', newRecords)
     records.value = newRecords
@@ -128,13 +124,7 @@ defineExpose({ open, close })
     <div class="command-palette" @click.stop>
       <div class="search-input-wrapper">
         <div class="search-box">
-          <svg
-            class="search-icon"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-          >
+          <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path
               d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
               stroke="currentColor"
@@ -185,10 +175,7 @@ defineExpose({ open, close })
               @click="(e) => deleteRecord(record, e)"
               :class="{ 'is-deleting': deletingId === record.url }"
             >
-              <div
-                v-if="deletingId === record.url"
-                class="delete-loading"
-              ></div>
+              <div v-if="deletingId === record.url" class="delete-loading"></div>
               <svg
                 v-else
                 class="delete-icon"
