@@ -14,8 +14,7 @@ export async function cleanupHistory() {
 
   const now = Date.now()
   const cutoff = now - CLEANUP_PERIODS[config.period]
-  const history =
-    (await storage.getItem<TweetHistory[]>('local:tweetHistory')) || []
+  const history = (await storage.getItem<TweetHistory[]>('local:tweetHistory')) || []
   const filteredHistory = history.filter((record) => record.timestamp > cutoff)
 
   if (filteredHistory.length !== history.length) {

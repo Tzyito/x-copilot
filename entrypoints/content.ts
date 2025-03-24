@@ -75,9 +75,7 @@ export default defineContentScript({
 
     // 监听时间轴元素的变化
     function observeTimeline() {
-      const timelineElement = document.querySelector(
-        '[aria-label="Home timeline"]'
-      )
+      const timelineElement = document.querySelector('[aria-label="Home timeline"]')
       if (timelineElement) {
         observer.observe(timelineElement, {
           childList: true,

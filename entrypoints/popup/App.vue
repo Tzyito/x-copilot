@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { storage } from 'wxt/storage'
-import type {
-  TweetHistory,
-  CleanupPeriod,
-  CleanupConfig,
-  LLMConfig,
-} from '@/types'
+import type { TweetHistory, CleanupPeriod, CleanupConfig, LLMConfig } from '@/types'
 import { cleanupHistory } from '../util/cleanup'
 
 const records = ref<TweetHistory[]>([])
@@ -33,6 +28,7 @@ const llmConfig = ref<LLMConfig>({
   baseUrl: '',
   apiKey: '',
   model: '',
+  provider: 'gemini',
 })
 
 // 加载清理配置
@@ -80,8 +76,7 @@ const filteredRecords = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return records.value.filter(
     (record) =>
-      record.title?.toLowerCase().includes(query) ||
-      record.author?.toLowerCase().includes(query)
+      record.title?.toLowerCase().includes(query) || record.author?.toLowerCase().includes(query),
   )
 })
 
@@ -181,10 +176,10 @@ const formatTime = (timestamp: number) => {
           <div class="bg-white cursor-pointer text-xs flex justify-between items-center gap-0.5">
             <label class="block text-xs text-[#666]">API Key</label>
             <div class="relative">
-            <input
-              v-model="llmConfig.apiKey"
+              <input
+                v-model="llmConfig.apiKey"
                 :type="isShowApiKey ? 'text' : 'password'"
-              placeholder="输入 API Key"
+                placeholder="输入 API Key"
                 class="p-2 border border-[#ddd] rounded-1 text-xs focus:border-[#2563eb] focus:outline-none"
               />
               <i

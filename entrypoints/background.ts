@@ -22,17 +22,12 @@ export default defineBackground(() => {
   const debouncedCheckAndRecordTweet = debounce(async (url: string) => {
     try {
       const parsedUrl = new URL(url)
-      if (
-        parsedUrl.hostname === 'x.com' ||
-        parsedUrl.hostname === 'twitter.com'
-      ) {
+      if (parsedUrl.hostname === 'x.com' || parsedUrl.hostname === 'twitter.com') {
         const tweetMatch = parsedUrl.pathname.match(/\/([^\/]+)\/status\/(\d+)/)
 
         if (tweetMatch) {
           const tweetId = tweetMatch[2]
-          const existingHistory = await storage.getItem<TweetHistory[]>(
-            'local:tweetHistory'
-          )
+          const existingHistory = await storage.getItem<TweetHistory[]>('local:tweetHistory')
           const history: TweetHistory[] = existingHistory || []
           // 检查是否已存在相同的记录
 
@@ -45,8 +40,7 @@ export default defineBackground(() => {
             const author = titleMatch[1]
             const content = titleMatch[2]
             console.log(author, content)
-            const truncatedContent =
-              content.length > 30 ? content.slice(0, 30) + '...' : content
+            const truncatedContent = content.length > 30 ? content.slice(0, 30) + '...' : content
 
             const historyItem: TweetHistory = {
               tweetId,
@@ -95,13 +89,16 @@ export default defineBackground(() => {
 
   // 设置定期检查清理
   // 每小时检查一次
-  setInterval(async () => {
-    const newHistory = await cleanupHistory()
-    if (newHistory) {
-      // 通知 popup 更新
-      browser.runtime.sendMessage({ type: 'TWEET_HISTORY_UPDATED' })
-    }
-  }, 60 * 60 * 1000)
+  setInterval(
+    async () => {
+      const newHistory = await cleanupHistory()
+      if (newHistory) {
+        // 通知 popup 更新
+        browser.runtime.sendMessage({ type: 'TWEET_HISTORY_UPDATED' })
+      }
+    },
+    60 * 60 * 1000,
+  )
 
   // 扩展启动时检查一次
   cleanupHistory().then((newHistory) => {
