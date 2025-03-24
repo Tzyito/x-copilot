@@ -34,7 +34,7 @@
 
 ### 记录流程
 
-<video src="./public/screenshots/output.webm" width="100%" height="240" controls></video>
+<video src="./public/screenshots/video.mp4" width="100%" height="240" controls></video>
 
 ## 📦 开发设置
 

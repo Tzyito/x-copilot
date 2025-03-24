@@ -61,7 +61,7 @@ An elegant browser extension that helps you record and manage your X (Twitter) b
 
 ### record flow
 
-<video src="./public/screenshots/output.webm" width="100%" height="240" controls></video>
+<video src="./public/screenshots/video.mp4" width="100%" height="240" controls></video>
 
 ## 📦 Development Setup
 
