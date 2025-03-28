@@ -54,6 +54,7 @@ button:focus-visible {
   text-align: center;
   max-height: 500px;
   min-height: 300px;
+  width: 400px;
 }
 
 @media (prefers-color-scheme: light) {

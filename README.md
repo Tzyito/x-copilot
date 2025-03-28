@@ -20,8 +20,14 @@ An elegant browser extension that helps you record and manage your X (Twitter) b
 - [ ] 💫 Elegant Animations
 - [x] 🌈 Modern UI Design
 - [ ] 📱 Responsive Layout
-- [x] 🔥 Quick Access (⌘K / Ctrl+K)
+- [x] 🔥 Quick Access (Shift+K)
 - [x] 🔍 Intelligent Search
+  - [x] Google
+  - [ ] Anthropic
+  - [x] OpenAI
+  - [ ] Grok
+- [ ] 📄 Export History
+- [ ] 🔄 Auto-Migrate Versions History(Coming Soon💫)
 
 ## 💡 Key Features
 

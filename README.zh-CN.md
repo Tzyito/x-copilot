@@ -19,8 +19,14 @@
 - [ ] 💫 优雅的动画效果
 - [x] 🌈 现代化的 UI 设计
 - [ ] 📱 响应式布局
-- [x] 🔥 快捷键唤起 (⌘K / Ctrl+K)
+- [x] 🔥 快捷键唤起 (Shift+K)
 - [x] 🔍 AI 智能搜索
+  - [x] Google
+  - [ ] Anthropic
+  - [x] OpenAI
+  - [ ] Grok
+- [ ] 📄 导出历史记录
+- [ ] 🔄 自动迁移版本记录(Coming Soon💫)
 
 ## 截图&视频
 
