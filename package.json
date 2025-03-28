@@ -1,7 +1,7 @@
 {
   "name": "x-copilot",
   "description": "Your personal X assistant",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "author": {
     "name": "tzyito"
