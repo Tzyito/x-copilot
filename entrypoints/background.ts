@@ -88,17 +88,21 @@ export default defineBackground(() => {
   })
 
   // 设置定期检查清理
-  // 每小时检查一次
-  setInterval(
-    async () => {
+  // 创建定时清理任务
+  browser.alarms.create('cleanupHistory', {
+    periodInMinutes: 60, // 每小时运行一次
+  })
+
+  // 监听定时器触发
+  browser.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name === 'cleanupHistory') {
       const newHistory = await cleanupHistory()
       if (newHistory) {
         // 通知 popup 更新
         browser.runtime.sendMessage({ type: 'TWEET_HISTORY_UPDATED' })
       }
-    },
-    60 * 60 * 1000,
-  )
+    }
+  })
 
   // 扩展启动时检查一次
   cleanupHistory().then((newHistory) => {
