@@ -66,8 +66,13 @@ An elegant browser extension that helps you record and manage your X (Twitter) b
 ![image](./public/screenshots/clean_history.png)
 
 ### record flow
+<div>
+there is a demo 
+    <a href="./public/screenshots/video.mp4">
+        video
+    </a>
+</div>
 
-<video src="./public/screenshots/video.mp4" width="100%" height="240" controls></video>
 
 ## How to use
 

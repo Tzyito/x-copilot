@@ -39,8 +39,12 @@
 ![image](./public/screenshots/clean_history.png)
 
 ### 记录流程
-
-<video src="./public/screenshots/video.mp4" width="100%" height="240" controls></video>
+<div>
+这里有一个演示 
+    <a href="./public/screenshots/video.mp4">
+        视频
+    </a>
+</div>
 
 ## 如何使用
 
