@@ -1,38 +1,38 @@
-interface TweetHistory {
+interface TwitterRecord {
   tweetId: string
   author: string
   content: string
   title: string
   timestamp: number
   url: string
-  children: TweetHistory[]
+  children: TwitterRecord[]
 }
 
 export default class TweetManager {
-  private tweetHistory: TweetHistory[] = []
+  private TwitterRecord: TwitterRecord[] = []
 
   constructor() {
-    this.tweetHistory = []
+    this.TwitterRecord = []
   }
 
   // 首页->tweet详情1 addTweet(null，详情1) [{id: 详情1}]
   // tweet详情1->tweet2详情 addTweet(详情1，详情2) [{id: 详情1, childen: [{id: 详情2}]}]
   // @TODO tweet详情2->tweet1详情 addTweet(详情2，详情1) [{id: 详情1, childen: [{id: 详情2}]}]
   // 这种情况，暂不支持。后续可用dfs查询
-  addTweet(originalTweet: TweetHistory, targetTweet: TweetHistory) {
-    const insertTweetted = this.tweetHistory.find((t) => t.tweetId === originalTweet?.tweetId)
+  addTweet(originalTweet: TwitterRecord, targetTweet: TwitterRecord) {
+    const insertTweetted = this.TwitterRecord.find((t) => t.tweetId === originalTweet?.tweetId)
     if (!originalTweet || !insertTweetted) {
-      this.tweetHistory.push({ ...targetTweet, children: [] })
+      this.TwitterRecord.push({ ...targetTweet, children: [] })
       return
     }
     insertTweetted.children.push(targetTweet)
   }
 
-  getTweetHistory() {
-    return this.tweetHistory
+  getTwitterRecord() {
+    return this.TwitterRecord
   }
 
   clear() {
-    this.tweetHistory = []
+    this.TwitterRecord = []
   }
 }

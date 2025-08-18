@@ -1,6 +1,8 @@
 import { createApp, ref, computed, watch } from 'vue'
 import ContentCommandPalette from '@/components/ContentCommandPalette.vue'
 import { useMagicKeys } from '@vueuse/core'
+import { DomSelector } from '@/utils/domSelector'
+import type { DomSelectionRecord } from '@/types'
 
 // 创建命令面板
 function createCommandPalette() {
@@ -40,6 +42,36 @@ function createCommandPalette() {
   }
 }
 
+// 创建 DOM 选择器
+function createDomSelector() {
+  const domSelector = new DomSelector()
+  
+  // 设置快捷键
+  const keys = useMagicKeys()
+  const s = keys['Shift_S']
+  
+  // 监听选择完成事件
+  domSelector.onSelection((record: DomSelectionRecord) => {
+    // 发送消息到 background
+    browser.runtime.sendMessage({
+      type: 'DOM_SELECTION_COMPLETED',
+      data: record
+    })
+  })
+  
+  // 监听快捷键
+  watch(s, (v) => {
+    if (v) {
+      domSelector.activate()
+    }
+  })
+  
+  // 返回清理函数
+  return () => {
+    domSelector.destroy()
+  }
+}
+
 // 添加节流函数
 function throttle<T extends (...args: any[]) => any>(func: T, limit: number) {
   let inThrottle = false
@@ -54,7 +86,7 @@ function throttle<T extends (...args: any[]) => any>(func: T, limit: number) {
 }
 
 export default defineContentScript({
-  matches: ['https://x.com/*'],
+  matches: ['<all_urls>'],  // 支持所有网站，而不仅仅是 twitter
 
   main(ctx) {
     let lastUrl = window.location.href
@@ -105,11 +137,15 @@ export default defineContentScript({
 
     // 创建命令面板
     const cleanupCommandPalette = createCommandPalette()
+    
+    // 创建 DOM 选择器
+    const cleanupDomSelector = createDomSelector()
 
     // 清理函数
     return () => {
       observer.disconnect()
       cleanupCommandPalette()
+      cleanupDomSelector()
     }
   },
 })

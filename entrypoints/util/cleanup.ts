@@ -1,5 +1,6 @@
-import type { CleanupConfig, TweetHistory } from '../../types'
+import type { CleanupConfig } from '../../types'
 import { storage } from 'wxt/storage'
+import { ContentStorage } from '@/utils/storage'
 
 export const CLEANUP_PERIODS = {
   '1w': 7 * 24 * 60 * 60 * 1000,
@@ -14,11 +15,11 @@ export async function cleanupHistory() {
 
   const now = Date.now()
   const cutoff = now - CLEANUP_PERIODS[config.period]
-  const history = (await storage.getItem<TweetHistory[]>('local:tweetHistory')) || []
+  const history = (await ContentStorage.getAllRecords()) || []
   const filteredHistory = history.filter((record) => record.timestamp > cutoff)
 
   if (filteredHistory.length !== history.length) {
-    await storage.setItem('local:tweetHistory', filteredHistory)
+    await ContentStorage.setAllRecords(filteredHistory)
     return filteredHistory
   }
   return null

@@ -2,7 +2,7 @@ import { create, insert, search as searchOrama } from '@orama/orama'
 import { createTokenizer } from '@orama/tokenizers/mandarin'
 import { stopwords as mandarinStopwords } from '@orama/stopwords/mandarin'
 import { ref } from 'vue'
-import { TweetHistory } from '@/types'
+import { ContentHistory, TwitterRecord } from '@/types'
 export const useSearch = () => {
   const config = {
     searchProperties: ['title', 'author'],
@@ -34,8 +34,8 @@ export const useSearch = () => {
     //     return results.hits.map(hit => hit.document)
     // }
     // return []
-    const history = (await storage.getItem<TweetHistory[]>('local:tweetHistory')) || []
-    const result = history.filter((item: TweetHistory) => item.title?.includes(question))
+    const history = (await ContentStorage.getAllRecords()) || []
+    const result = history.filter((item: ContentHistory) => item.content?.includes(question))
     return result
   }
   const add = async (data: any) => {

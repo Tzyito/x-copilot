@@ -1,8 +1,6 @@
-import type { TweetHistory, Message } from '../types'
-import { storage } from 'wxt/storage'
+import type { TwitterRecord, Message, DomSelectionRecord } from '../types'
 import { cleanupHistory } from './util/cleanup'
-// import { useSearch } from './popup/search'
-// const { add } = useSearch()
+import { ContentStorage } from '@/utils/storage'
 
 // 添加防抖函数
 function debounce<T extends (...args: any[]) => any>(func: T, wait: number) {
@@ -27,8 +25,8 @@ export default defineBackground(() => {
 
         if (tweetMatch) {
           const tweetId = tweetMatch[2]
-          const existingHistory = await storage.getItem<TweetHistory[]>('local:tweetHistory')
-          const history: TweetHistory[] = existingHistory || []
+          const existingHistory = await ContentStorage.getRecordsBySource('twitter')
+          const history= existingHistory as TwitterRecord[] || []
           // 检查是否已存在相同的记录
 
           if (!history.some((item) => item.tweetId === tweetId)) {
@@ -42,24 +40,26 @@ export default defineBackground(() => {
             console.log(author, content)
             const truncatedContent = content.length > 30 ? content.slice(0, 30) + '...' : content
 
-            const historyItem: TweetHistory = {
+            const historyItem: TwitterRecord = {
+              id: ContentStorage.generateId(),
+              source: 'twitter',
               tweetId,
               url: url,
               timestamp: Date.now(),
               author,
               title: truncatedContent,
               content: content,
+              site: {
+                name: parsedUrl.hostname,
+                favicon: `${parsedUrl.origin}/favicon.ico`
+              }
             }
             // 添加新记录到历史中
             history.unshift(historyItem)
             // 保存更新后的历史
-            await storage.setItem('local:tweetHistory', history)
+            await ContentStorage.addRecord(historyItem)
 
-            // setTimeout(async () => {
-            //   await add(historyItem)
-            // }, 1000);
-
-            // 发送消息通知其他部分（如popup）历史已更新
+            // 发送消息通知其他部分（如 popup）历史已更新
             const message: Message = {
               type: 'TWEET_HISTORY_UPDATED',
               data: historyItem,
@@ -73,14 +73,34 @@ export default defineBackground(() => {
     }
   }, 300) // 300ms 的防抖时间
 
-  // 监听来自content script的消息
+  // 处理 DOM 选择完成消息
+  async function handleDomSelectionCompleted(record: DomSelectionRecord) {
+    try {
+      // 保存 DOM 选择记录
+      await ContentStorage.addRecord(record)
+      
+      // 发送消息通知其他部分历史已更新
+      const message: Message = {
+        type: 'CONTENT_UPDATED',
+        data: record
+      }
+      browser.runtime.sendMessage(message)
+    } catch (error) {
+      console.error('Error handling DOM selection:', error)
+    }
+  }
+
+  // 监听来自 content script 的消息
   browser.runtime.onMessage.addListener((message, sender) => {
+    console.log('message', message)
     if (message === 'CHECK_URL' && sender.tab?.url) {
       debouncedCheckAndRecordTweet(sender.tab.url)
+    } else if (message.type === 'DOM_SELECTION_COMPLETED') {
+      handleDomSelectionCompleted(message.data)
     }
   })
 
-  // 监听标签页更新（用于非SPA导航）
+  // 监听标签页更新（用于非 SPA 导航）
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url) {
       debouncedCheckAndRecordTweet(tab.url)

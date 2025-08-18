@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { storage } from 'wxt/storage'
-import type { TweetHistory, CleanupPeriod, CleanupConfig, LLMConfig } from '@/types'
+import type { TwitterRecord, CleanupPeriod, CleanupConfig, LLMConfig, ContentHistory, DomSelectionRecord } from '@/types'
 import { cleanupHistory } from '../util/cleanup'
+import { ContentStorage } from '@/utils/storage'
 
-const records = ref<TweetHistory[]>([])
+const records = ref<ContentHistory[]>([])
 const searchQuery = ref('')
 const showCleanupSettings = ref(false)
 const showLLMSettings = ref(false)
@@ -76,12 +77,13 @@ const filteredRecords = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return records.value.filter(
     (record) =>
-      record.title?.toLowerCase().includes(query) || record.author?.toLowerCase().includes(query),
+      (record as TwitterRecord).title?.toLowerCase().includes(query) ||
+      (record as TwitterRecord).author?.toLowerCase().includes(query),
   )
 })
 
 const loadHistory = async () => {
-  records.value = (await storage.getItem('local:tweetHistory')) || []
+  records.value = (await ContentStorage.getAllRecords()) || []
 }
 
 onMounted(async () => {
@@ -97,12 +99,12 @@ onMounted(async () => {
   })
 })
 
-const openTweet = (record: TweetHistory) => {
+const openTweet = (record: ContentHistory) => {
   window.open(record.url, '_blank')
 }
 
 const clearHistory = async () => {
-  await storage.setItem('local:tweetHistory', [])
+  await ContentStorage.clearHistory()
   records.value = []
 }
 
@@ -276,10 +278,10 @@ const formatTime = (timestamp: number) => {
         @click="openTweet(record)"
       >
         <div class="flex justify-between mb-1">
-          <span class="font-bold text-[#1a1a1a] text-xs">{{ record.author }}</span>
+          <span class="font-bold text-[#1a1a1a] text-xs">{{ record.source === 'twitter' ? (record as TwitterRecord).author : (record as DomSelectionRecord).site.name }}</span>
           <span class="text-xs text-[#666]">{{ formatTime(record.timestamp) }}</span>
         </div>
-        <div class="text-[#444] text-xs leading-normal text-left">{{ record.title }}</div>
+        <div class="text-[#444] text-xs leading-normal text-left">{{ record.content }}</div>
       </div>
     </div>
   </div>

@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import * as JsSearch from 'js-search'
-import type { TweetHistory } from '../types'
+import type { TwitterRecord } from '../types'
 
 // 模拟的推文历史数据
-const mockTweetHistory: TweetHistory[] = [
+const mockTweetHistory: Partial<TwitterRecord>[] = [
   {
     tweetId: '1',
     url: 'https://twitter.com/user1/status/1',
@@ -46,7 +46,7 @@ describe('Tweet Search functionality', () => {
   })
 
   // it('should find tweets by content', () => {
-  //     const results = searchEngine.search('Vue.js') as TweetHistory[]
+  //     const results = searchEngine.search('Vue.js') as TwitterRecord[]
   //     expect(results.length).toBe(1)
   //     expect(results[0].author).toBe('李四')
   // })
@@ -57,7 +57,7 @@ describe('Tweet Search functionality', () => {
   // })
 
   // it('should find tweets by partial match', () => {
-  //     const results = searchEngine.search('天气') as TweetHistory[]
+  //     const results = searchEngine.search('天气') as TwitterRecord[]
   //     expect(results.length).toBe(1)
   //     expect(results[0].title).toContain('天气')
   // })

@@ -1,33 +1,65 @@
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
-import type { TweetHistory } from '../types'
-import { storage } from 'wxt/storage'
+import { ref, computed, nextTick, watch } from 'vue'
+import type { ContentHistory, TwitterRecord, DomSelectionRecord, SearchMode, SearchResultGroup } from '../types'
+import { SearchService } from '@/utils/searchService'
+import { SearchParser } from '@/utils/searchParser'
+import { ContentStorage } from '@/utils/storage'
 import { useSearch } from '@/llm/useSearch'
 import { Toaster, toast } from 'vue-sonner'
 
 const isOpen = ref(false)
 const searchQuery = ref('')
 const selectedIndex = ref(0)
-const records = ref<TweetHistory[]>([])
+const selectedSuggestion = ref(false)
 const searchInput = ref<HTMLInputElement>()
 const isSearching = ref(false)
 const deletingId = ref<string | null>(null)
 
-const { search } = useSearch()
-const filteredRecords = computed(() => {
-  if (!searchQuery.value) return records.value
-
-  const query = searchQuery.value.toLowerCase()
-  return records.value.filter(
-    (record) =>
-      record.title?.toLowerCase().includes(query) ||
-      record.author?.toLowerCase().includes(query) ||
-      record.content?.toLowerCase().includes(query),
-  )
+const searchResults = ref<{
+  mode: SearchMode
+  groups: Array<SearchResultGroup>
+  totalCount: number
+}>({
+  mode: 'grouped',
+  groups: [],
+  totalCount: 0
 })
 
+const { search } = useSearch()
+
+// 搜索建议
+const searchSuggestions = computed(() => {
+  if (!searchQuery.value || selectedSuggestion.value) return []
+  return SearchParser.getSearchSuggestions(searchQuery.value)
+})
+
+// 扁平化的记录列表，用于键盘导航
+const flattenedRecords = computed(() => {
+  const records: ContentHistory[] = []
+  searchResults.value.groups.forEach(group => {
+    if (searchResults.value.mode === 'grouped') {
+      records.push(...group.items.slice(0, 3)) // 分组模式只显示前 3 个
+    } else {
+      records.push(...group.items)
+    }
+  })
+  return records
+})
+
+// 实时搜索
+watch(searchQuery, async (newQuery) => {
+  if(newQuery.trim() === '') {
+    selectedSuggestion.value = false
+  }
+  const results = await SearchService.search(newQuery)
+  searchResults.value = results
+  selectedIndex.value = 0
+}, { immediate: true })
+
 const loadHistory = async () => {
-  records.value = (await storage.getItem('local:tweetHistory')) || []
+  const results = await SearchService.search('')
+  console.log('results', results)
+  searchResults.value = results
 }
 
 const open = async () => {
@@ -47,21 +79,25 @@ const openUrl = (url: string) => {
   window.open(url, '_blank')
 }
 
+const openContent = (item: ContentHistory) => {
+  openUrl(item.url)
+  close()
+}
+
 const handleKeydown = (e: KeyboardEvent) => {
   switch (e.key) {
     case 'ArrowDown':
       e.preventDefault()
-      selectedIndex.value = (selectedIndex.value + 1) % filteredRecords.value.length
+      selectedIndex.value = (selectedIndex.value + 1) % flattenedRecords.value.length
       break
     case 'ArrowUp':
       e.preventDefault()
       selectedIndex.value =
-        selectedIndex.value - 1 < 0 ? filteredRecords.value.length - 1 : selectedIndex.value - 1
+        selectedIndex.value - 1 < 0 ? flattenedRecords.value.length - 1 : selectedIndex.value - 1
       break
     case 'Enter':
-      if (filteredRecords.value[selectedIndex.value]) {
-        openUrl(filteredRecords.value[selectedIndex.value].url)
-        close()
+      if (flattenedRecords.value[selectedIndex.value]) {
+        openContent(flattenedRecords.value[selectedIndex.value])
       }
       break
     case 'Escape':
@@ -87,28 +123,57 @@ const handleSearch = async () => {
   }
 }
 
-const deleteRecord = async (record: TweetHistory, e: Event) => {
+const deleteRecord = async (record: ContentHistory, e: Event) => {
   e.stopPropagation()
-  if (deletingId.value === record.url) return
+  if (deletingId.value === record.id) return
 
-  deletingId.value = record.url
+  deletingId.value = record.id
 
   try {
-    const currentRecords = (await storage.getItem<TweetHistory[]>('local:tweetHistory')) || []
-    const newRecords = currentRecords.filter((r) => r.url !== record.url)
-    await storage.setItem('local:tweetHistory', newRecords)
-    records.value = newRecords
-    if (selectedIndex.value >= records.value.length) {
-      selectedIndex.value = Math.max(0, records.value.length - 1)
+    await ContentStorage.deleteRecord(record.id)
+    await loadHistory() // 重新加载搜索结果
+    if (selectedIndex.value >= flattenedRecords.value.length) {
+      selectedIndex.value = Math.max(0, flattenedRecords.value.length - 1)
     }
   } finally {
     deletingId.value = null
   }
 }
 
+const handleSuggestionClick = (suggestion: string) => {
+  searchQuery.value = suggestion
+  selectedSuggestion.value = true
+  nextTick(() => searchInput.value?.focus())
+}
+
+const filterBySource = (source: string) => {
+  searchQuery.value = `source:${source}`
+  nextTick(() => searchInput.value?.focus())
+}
+
+const getItemTitle = (item: ContentHistory): string => {
+  if (item.source === 'twitter') {
+    return (item as TwitterRecord).title || item.content.substring(0, 50) + '...'
+  } else {
+    return (item as DomSelectionRecord).preview || item.content.substring(0, 50) + '...'
+  }
+}
+
+const getItemAuthor = (item: ContentHistory): string => {
+  if (item.source === 'twitter') {
+    return (item as TwitterRecord).author || 'Unknown'
+  } else {
+    return item.site.name
+  }
+}
+
+const formatTime = (timestamp: number): string => {
+  return new Date(timestamp).toLocaleDateString()
+}
+
 // 监听历史更新消息
 browser.runtime.onMessage.addListener((message) => {
-  if (message.type === 'TWEET_HISTORY_UPDATED') {
+  if (message.type === 'CONTENT_UPDATED' || message.type === 'TWEET_HISTORY_UPDATED') {
     loadHistory()
   }
 })
@@ -122,6 +187,8 @@ defineExpose({ open, close })
   <Toaster />
   <div v-if="isOpen" class="command-palette-backdrop" @click="close">
     <div class="command-palette" @click.stop>
+      
+      <!-- 搜索输入框 -->
       <div class="search-input-wrapper">
         <div class="search-box">
           <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -136,7 +203,7 @@ defineExpose({ open, close })
             ref="searchInput"
             v-model="searchQuery"
             type="text"
-            placeholder="搜索历史记录(按下回车进行AI搜索)..."
+            placeholder="搜索内容或使用 source:twitter 筛选..."
             class="search-input"
             @keydown="handleKeydown"
             @keyup.enter="handleSearch"
@@ -146,66 +213,137 @@ defineExpose({ open, close })
           </div>
           <kbd class="shortcut-hint">{{ SHORTCUT_TEXT }}</kbd>
         </div>
+        
+        <!-- 搜索建议 -->
+        <div v-if="searchSuggestions.length" class="search-suggestions">
+          <button
+            v-for="suggestion in searchSuggestions"
+            :key="suggestion"
+            @click="handleSuggestionClick(suggestion)"
+            class="suggestion-item"
+          >
+            {{ suggestion }}
+          </button>
+        </div>
       </div>
 
+      <!-- 结果展示区域 -->
       <div class="results-wrapper">
-        <template v-if="filteredRecords.length">
-          <div
-            v-for="(record, index) in filteredRecords"
-            :key="record.url"
-            :class="['result-item', { 'is-selected': index === selectedIndex }]"
-            @click="
-              () => {
-                openUrl(record.url)
-                close()
-              }
-            "
-          >
-            <div class="result-content">
-              <div class="result-title">{{ record.title }}</div>
-              <div class="result-meta">
-                <span class="result-author">{{ record.author }}</span>
-                <span class="result-time">
-                  {{ new Date(record.timestamp).toLocaleDateString() }}
-                </span>
+        
+        <!-- 分组模式 -->
+        <template v-if="searchResults.mode === 'grouped'">
+          <div v-for="group in searchResults.groups" :key="group.source" class="result-group">
+            <div class="group-header">
+              <span class="group-icon">{{ group.icon }}</span>
+              <span class="group-title">{{ group.title }}</span>
+              <span class="group-count">{{ group.count }}</span>
+            </div>
+            
+            <div class="group-items">
+              <div
+                v-for="(item, index) in group.items.slice(0, 3)"
+                :key="item.id" 
+                class="result-item"
+                @click="openContent(item)"
+              >
+                <div class="result-content">
+                  <div class="result-title">{{ getItemTitle(item) }}</div>
+                  <div class="result-meta">
+                    <span class="result-author">{{ getItemAuthor(item) }}</span>
+                    <span class="result-time">{{ formatTime(item.timestamp) }}</span>
+                  </div>
+                </div>
+                <button
+                  class="result-delete"
+                  @click="(e) => deleteRecord(item, e)"
+                  :class="{ 'is-deleting': deletingId === item.id }"
+                >
+                  <div v-if="deletingId === item.id" class="delete-loading"></div>
+                  <svg
+                    v-else
+                    class="delete-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+              
+              <div v-if="group.count > 3" class="show-more" @click="filterBySource(group.source)">
+                显示全部 {{ group.count }} 条记录...
               </div>
             </div>
-            <button
-              class="result-delete"
-              @click="(e) => deleteRecord(record, e)"
-              :class="{ 'is-deleting': deletingId === record.url }"
-            >
-              <div v-if="deletingId === record.url" class="delete-loading"></div>
-              <svg
-                v-else
-                class="delete-icon"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
           </div>
         </template>
-        <div v-else-if="searchQuery" class="no-results">
-          <div class="no-results-icon">🔍</div>
-          <div class="no-results-text">无搜索结果</div>
-        </div>
-        <div v-else-if="!records.length" class="empty-hint">
-          <div class="empty-hint-icon">✨</div>
-          <div class="empty-hint-text">输入关键词搜索历史记录</div>
-          <div class="empty-hint-shortcut">
-            随时按下
-            <kbd>{{ SHORTCUT_TEXT }}</kbd>
-            快速搜索
+        
+        <!-- 筛选模式 -->
+        <template v-else-if="searchResults.mode === 'filtered'">
+          <div v-for="group in searchResults.groups" :key="group.source">
+            <div class="filter-header">
+              <span class="group-icon">{{ group.icon }}</span>
+              <span class="group-title">{{ group.title }}</span>
+              <span class="result-count">{{ group.count }} 条结果</span>
+            </div>
+            
+            <div
+              v-for="(item, index) in group.items"
+              :key="item.id"
+              :class="['result-item', { 'is-selected': index === selectedIndex }]"
+              @click="openContent(item)"
+            >
+              <div class="result-content">
+                <div class="result-title">{{ getItemTitle(item) }}</div>
+                <div class="result-meta">
+                  <span class="result-author">{{ getItemAuthor(item) }}</span>
+                  <span class="result-time">{{ formatTime(item.timestamp) }}</span>
+                </div>
+              </div>
+              <button
+                class="result-delete"
+                @click="(e) => deleteRecord(item, e)"
+                :class="{ 'is-deleting': deletingId === item.id }"
+              >
+                <div v-if="deletingId === item.id" class="delete-loading"></div>
+                <svg
+                  v-else
+                  class="delete-icon"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </template>
+        
+        <!-- 空状态 -->
+        <div v-if="searchResults.totalCount === 0" class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-text">
+            {{ searchQuery ? '没有找到相关内容' : '还没有保存任何内容' }}
+          </div>
+          <div class="empty-tips">
+            <div>• 按 <kbd>Shift + K</kbd> 搜索历史</div>
+            <div>• 按 <kbd>Shift + S</kbd> 选择页面内容</div>
+            <div>• 使用 <kbd>source:twitter</kbd> 筛选推文</div>
           </div>
         </div>
       </div>
@@ -241,6 +379,9 @@ defineExpose({ open, close })
 .search-input-wrapper {
   padding: 16px;
   border-bottom: 1px solid #eee;
+}
+.search-input-wrapper ::placeholder {
+  color: #c2bdbd;
 }
 
 .search-box {
@@ -279,7 +420,7 @@ defineExpose({ open, close })
 .results-wrapper {
   max-height: 400px;
   overflow-y: auto;
-  padding: 8px 0;
+  padding-bottom: 8px;
 }
 
 .result-item {
@@ -441,5 +582,128 @@ kbd {
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* 新增样式 */
+.search-suggestions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.suggestion-item {
+  padding: 4px 8px;
+  background: #f0f9ff;
+  border: 1px solid #0ea5e9;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #0369a1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.suggestion-item:hover {
+  background: #0ea5e9;
+  color: white;
+}
+
+.result-group {
+  margin-bottom: 16px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 14px;
+}
+
+.group-icon {
+  font-size: 16px;
+}
+
+.group-title {
+  font-weight: 600;
+  color: #495057;
+}
+
+.group-count {
+  margin-left: auto;
+  background: #6c757d;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.group-items {
+  margin-top: 8px;
+  padding: 0 16px;
+}
+
+.show-more {
+  padding: 8px 0;
+  text-align: center;
+  color: #0ea5e9;
+  cursor: pointer;
+  font-size: 14px;
+  border-top: 1px solid #e9ecef;
+  margin-top: 8px;
+  transition: background-color 0.2s;
+}
+
+.show-more:hover {
+  background: #f8f9fa;
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+  font-size: 14px;
+}
+
+.result-count {
+  margin-left: auto;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.empty-state {
+  padding: 32px;
+  text-align: center;
+  color: #666;
+}
+
+.empty-icon {
+  font-size: 24px;
+  margin-bottom: 12px;
+}
+
+.empty-text {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.empty-tips {
+  color: #6c757d;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.empty-tips kbd {
+  background: #e9ecef;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 11px;
 }
 </style>
