@@ -6,8 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 X Copilot is a modern browser extension built for recording and managing X (Twitter) browsing history with intelligent search capabilities. The extension is built using the WXT framework with Vue 3, TypeScript, and UnoCSS.
 
-## Key Commands
-
 ### Development
 - `pnpm dev` - Start development server for Chrome
 - `pnpm dev:firefox` - Start development server for Firefox
@@ -32,9 +30,9 @@ X Copilot is a modern browser extension built for recording and managing X (Twit
 - Stores tweet history in browser storage
 
 **Content Script** (`entrypoints/content.ts`):
-- Injects command palette into X.com pages
+- Injects command palette into ALL websites (not just X.com)
 - Monitors DOM changes for SPA navigation
-- Provides Shift+K shortcut for quick access
+- Provides Shift+K shortcut for search and Shift+S for DOM selection
 - Uses throttled messaging to background script
 
 **Popup Interface** (`entrypoints/popup/App.vue`):
@@ -62,11 +60,14 @@ The extension supports intelligent search through multiple LLM providers:
 **Storage Schema**:
 - `CleanupConfig`: Manages automatic history cleanup settings
 - `LLMConfig`: Stores API keys and model configurations
+- `ContentRecord`: Union type for `TwitterRecord` and `DomSelectionRecord`
+- `ContentStorage`: Centralized storage management class in `utils/storage.ts`
 
 **History Management**:
 - Automatic recording based on dwell time on tweet pages
+- DOM element selection and recording on any website
 - Periodic cleanup based on user-configured retention periods
-- Real-time search filtering by author or content
+- Real-time search filtering by author or content with advanced query syntax (`source:twitter`)
 
 ### Tech Stack
 
@@ -82,7 +83,6 @@ The extension supports intelligent search through multiple LLM providers:
 - `activeTab`: Access current tab information
 - `storage`: Browser storage API access
 - `alarms`: Periodic background tasks
-- `host_permissions`: Limited to https://x.com/*
 
 ## Development Notes
 
@@ -90,6 +90,16 @@ The extension supports intelligent search through multiple LLM providers:
 - SPA navigation detection is handled through MutationObserver on timeline elements
 - All browser storage operations use WXT's storage abstraction
 - The command palette uses Vue's teleport-like functionality for DOM injection
+- Search service supports grouped/filtered display modes based on query complexity
+- DOM selection tool provides visual overlays and CSS selector generation
+
+## Key Files
+
+- `utils/storage.ts`: Centralized ContentStorage class for all data operations
+- `utils/searchService.ts`: Advanced search functionality with query parsing
+- `utils/domSelector.ts`: Interactive element selection system
+- `llm/index.ts`: LLM integration with prompt engineering for search enhancement
+- `types/index.ts`: TypeScript definitions for all data structures
 
 ## IMP!!
 no gradient, no card!

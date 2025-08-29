@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
-import type { ContentHistory, TwitterRecord, DomSelectionRecord, SearchMode, SearchResultGroup } from '../types'
+import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
+import type { ContentHistory, TwitterRecord, DomSelectionRecord, SearchMode, SearchResultGroup, HotkeyConfig } from '../types'
 import { SearchService } from '@/utils/searchService'
 import { SearchParser } from '@/utils/searchParser'
 import { ContentStorage } from '@/utils/storage'
 import { useSearch } from '@/llm/useSearch'
 import { Toaster, toast } from 'vue-sonner'
+import { hotkeyStorage } from '@/utils/hotkeyStorage'
 
 const isOpen = ref(false)
 const searchQuery = ref('')
@@ -26,6 +27,11 @@ const searchResults = ref<{
 })
 
 const { search } = useSearch()
+
+// 快捷键配置
+const hotkeyConfig = ref<HotkeyConfig>({
+  bindings: []
+})
 
 // 搜索建议
 const searchSuggestions = computed(() => {
@@ -171,14 +177,45 @@ const formatTime = (timestamp: number): string => {
   return new Date(timestamp).toLocaleDateString()
 }
 
-// 监听历史更新消息
-browser.runtime.onMessage.addListener((message) => {
-  if (message.type === 'CONTENT_UPDATED' || message.type === 'TWEET_HISTORY_UPDATED') {
-    loadHistory()
+// 快捷键配置相关的计算属性
+const shortcuts = computed(() => {
+  const searchBinding = hotkeyConfig.value.bindings.find(b => b.action === 'search')
+  const domSelectBinding = hotkeyConfig.value.bindings.find(b => b.action === 'domSelect')
+  
+  return {
+    search: searchBinding?.keys || 'Shift+K',
+    domSelect: domSelectBinding?.keys || 'Shift+S'
   }
 })
 
-const SHORTCUT_TEXT = 'Shift + K'
+// 统一的消息处理器
+const handleRuntimeMessage = (message: any) => {
+  switch (message.type) {
+    case 'CONTENT_UPDATED':
+    case 'TWEET_HISTORY_UPDATED':
+      loadHistory()
+      break
+    case 'HOTKEY_CONFIG_UPDATED':
+      hotkeyConfig.value = message.data
+      break
+  }
+}
+
+// 初始化配置
+const initializeConfig = async () => {
+  const config = await hotkeyStorage.getHotkeyConfig()
+  hotkeyConfig.value = config
+}
+
+// 生命周期管理
+onMounted(async () => {
+  await initializeConfig()
+  browser.runtime.onMessage.addListener(handleRuntimeMessage)
+})
+
+onUnmounted(() => {
+  browser.runtime.onMessage.removeListener(handleRuntimeMessage)
+})
 
 defineExpose({ open, close })
 </script>
@@ -211,7 +248,7 @@ defineExpose({ open, close })
           <div v-if="isSearching" class="search-loading">
             <div class="loading-spinner"></div>
           </div>
-          <kbd class="shortcut-hint">{{ SHORTCUT_TEXT }}</kbd>
+          <kbd class="shortcut-hint">{{ shortcuts.search }}</kbd>
         </div>
         
         <!-- 搜索建议 -->
@@ -341,8 +378,8 @@ defineExpose({ open, close })
             {{ searchQuery ? '没有找到相关内容' : '还没有保存任何内容' }}
           </div>
           <div class="empty-tips">
-            <div>• 按 <kbd>Shift + K</kbd> 搜索历史</div>
-            <div>• 按 <kbd>Shift + S</kbd> 选择页面内容</div>
+            <div>• 按 <kbd>{{ shortcuts.search }}</kbd> 搜索历史</div>
+            <div>• 按 <kbd>{{ shortcuts.domSelect }}</kbd> 选择页面内容</div>
             <div>• 使用 <kbd>source:twitter</kbd> 筛选推文</div>
           </div>
         </div>

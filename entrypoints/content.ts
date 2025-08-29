@@ -1,8 +1,13 @@
-import { createApp, ref, computed, watch } from 'vue'
+import { createApp, ref, watch } from 'vue'
 import ContentCommandPalette from '@/components/ContentCommandPalette.vue'
 import { useMagicKeys } from '@vueuse/core'
 import { DomSelector } from '@/utils/domSelector'
-import type { DomSelectionRecord } from '@/types'
+import type { DomSelectionRecord, HotkeyConfig } from '@/types'
+import { hotkeyStorage } from '@/utils/hotkeyStorage'
+// eslint-disable-next-line import/no-unresolved
+import '@unocss/reset/normalize.css'
+import 'virtual:uno.css'
+
 
 // 创建命令面板
 function createCommandPalette() {
@@ -24,31 +29,19 @@ function createCommandPalette() {
   // 挂载应用
   const instance = app.mount(container)
 
-  // 设置快捷键
-  const keys = useMagicKeys()
-  const k = keys['Shift_K']
-
-  // 监听快捷键
-  watch(k, (v) => {
-    if (v) {
-      ;(instance as any).open()
+  // 返回实例和清理函数
+  return {
+    instance,
+    cleanup: () => {
+      app.unmount()
+      container.remove()
     }
-  })
-
-  // 返回清理函数
-  return () => {
-    app.unmount()
-    container.remove()
   }
 }
 
 // 创建 DOM 选择器
 function createDomSelector() {
   const domSelector = new DomSelector()
-  
-  // 设置快捷键
-  const keys = useMagicKeys()
-  const s = keys['Shift_S']
   
   // 监听选择完成事件
   domSelector.onSelection((record: DomSelectionRecord) => {
@@ -59,16 +52,68 @@ function createDomSelector() {
     })
   })
   
-  // 监听快捷键
-  watch(s, (v) => {
-    if (v) {
-      domSelector.activate()
+  // 返回实例和清理函数
+  return {
+    instance: domSelector,
+    cleanup: () => {
+      domSelector.destroy()
     }
-  })
-  
-  // 返回清理函数
-  return () => {
-    domSelector.destroy()
+  }
+}
+
+// 快捷键管理器
+function createHotkeyManager(commandPalette: any, domSelector: any) {
+  const keys = useMagicKeys()
+  const watchers = ref<Record<string, () => void>>({})
+
+  // 绑定快捷键
+  const bindHotkeys = async (config: HotkeyConfig) => {
+    // 清除现有的监听器
+    Object.values(watchers.value).forEach(unwatch => unwatch())
+    watchers.value = {}
+
+    config.bindings.forEach(binding => {
+      const magicKey = hotkeyStorage.formatKeysForMagicKeys(binding.keys)
+      const keyRef = keys[magicKey]
+
+      const unwatch = watch(keyRef, (pressed) => {
+        if (pressed) {
+          switch (binding.action) {
+            case 'search':
+              commandPalette.open()
+              break
+            case 'domSelect':
+              domSelector.activate()
+              break
+          }
+        }
+      })
+
+      watchers.value[binding.action] = unwatch
+    })
+  }
+
+  // 初始化快捷键
+  const initHotkeys = async () => {
+    const config = await hotkeyStorage.getHotkeyConfig()
+    await bindHotkeys(config)
+  }
+
+  // 监听配置更新消息
+  const handleMessage = (message: any) => {
+    if (message.type === 'HOTKEY_CONFIG_UPDATED') {
+      bindHotkeys(message.data)
+    }
+  }
+
+  browser.runtime.onMessage.addListener(handleMessage)
+
+  return {
+    initHotkeys,
+    cleanup: () => {
+      Object.values(watchers.value).forEach(unwatch => unwatch())
+      browser.runtime.onMessage.removeListener(handleMessage)
+    }
   }
 }
 
@@ -136,16 +181,26 @@ export default defineContentScript({
     browser.runtime.sendMessage('CHECK_URL')
 
     // 创建命令面板
-    const cleanupCommandPalette = createCommandPalette()
+    const commandPalette = createCommandPalette()
     
     // 创建 DOM 选择器
-    const cleanupDomSelector = createDomSelector()
+    const domSelectorManager = createDomSelector()
+
+    // 创建快捷键管理器
+    const hotkeyManager = createHotkeyManager(
+      commandPalette.instance,
+      domSelectorManager.instance
+    )
+
+    // 初始化快捷键
+    hotkeyManager.initHotkeys()
 
     // 清理函数
     return () => {
       observer.disconnect()
-      cleanupCommandPalette()
-      cleanupDomSelector()
+      commandPalette.cleanup()
+      domSelectorManager.cleanup()
+      hotkeyManager.cleanup()
     }
   },
 })

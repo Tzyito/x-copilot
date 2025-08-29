@@ -67,3 +67,15 @@ export interface LLMConfig {
   model: string
   provider: string
 }
+
+export type HotkeyAction = 'search' | 'domSelect'
+
+export interface HotkeyBinding {
+  action: HotkeyAction
+  keys: string
+  description: string
+}
+
+export interface HotkeyConfig {
+  bindings: HotkeyBinding[]
+}
