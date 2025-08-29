@@ -1,0 +1,65 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+name: Build and Release
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Extract tag name
+        id: extract_tag
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          FILENAME="x-copilot-${TAG}.zip"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+          echo "📦 Tag: $TAG"
+          echo "📄 Filename: $FILENAME"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build extension
+        run: |
+          pnpm zip
+
+      - name: Rename built file
+        run: |
+          mv .output/*.zip ${{ steps.extract_tag.outputs.filename }}
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.extract_tag.outputs.tag }}
+          release_name: Release ${{ steps.extract_tag.outputs.tag }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ steps.extract_tag.outputs.filename }}
+          asset_name: ${{ steps.extract_tag.outputs.filename }}
+          asset_content_type: application/zip
